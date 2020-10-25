@@ -1,6 +1,5 @@
 import 'module-alias/register';
 import 'source-map-support/register';
-import 'express-async-errors';
 import 'reflect-metadata';
 
 import logger from '~/config/logger';
