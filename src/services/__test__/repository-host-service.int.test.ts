@@ -6,6 +6,7 @@ import Container from 'typedi';
 import { RepositoryHostService } from '../repository-host-service';
 
 import { InjectionKeys } from '~/constants/injection-keys';
+import { timeToDaysString } from '~/helpers/datetime-helper';
 
 describe('[integration] Repository host service', () => {
   const EXISTENT_REPOSITORY = { owner: 'octocat', name: 'Hello-World' };
@@ -38,9 +39,11 @@ describe('[integration] Repository host service', () => {
       expect(
         repositoryHostService.calculateIssuesStatistics,
       ).toHaveBeenCalled();
-      expect(repository!.issuesAvgTime).toBe(ISSUES_STATISTICS.averageTime);
+      expect(repository!.issuesAvgTime).toBe(
+        timeToDaysString(ISSUES_STATISTICS.averageTime),
+      );
       expect(repository!.issuesTimeStdDev).toBe(
-        ISSUES_STATISTICS.timeStandardDeviation,
+        timeToDaysString(ISSUES_STATISTICS.timeStandardDeviation),
       );
     });
 

@@ -2,6 +2,7 @@ import { Octokit } from '@octokit/core';
 import { Inject, Service } from 'typedi';
 
 import { InjectionKeys } from '~/constants/injection-keys';
+import { timeToDaysString } from '~/helpers/datetime-helper';
 import { average, standardDeviation } from '~/helpers/math-helper';
 
 export interface RepositoryIdentifier {
@@ -14,8 +15,8 @@ export interface Repository {
   name: string;
   title: string;
   issuesCount: number;
-  issuesAvgTime: number;
-  issuesTimeStdDev: number;
+  issuesAvgTime: string;
+  issuesTimeStdDev: string;
   // The attributes below will be added when the persistence is implemented
   // views: number;
   // refreshedAt: Date;
@@ -76,8 +77,10 @@ export class RepositoryHostService {
         name: identifier.name,
         title: response.repository.name,
         issuesCount: response.repository.issues.totalCount,
-        issuesAvgTime: issuesStatistics.averageTime,
-        issuesTimeStdDev: issuesStatistics.timeStandardDeviation,
+        issuesAvgTime: timeToDaysString(issuesStatistics.averageTime),
+        issuesTimeStdDev: timeToDaysString(
+          issuesStatistics.timeStandardDeviation,
+        ),
       };
     } catch (error) {
       if (error.errors[0].type === 'NOT_FOUND') {

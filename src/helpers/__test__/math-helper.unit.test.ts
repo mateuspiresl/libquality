@@ -1,6 +1,6 @@
 import { average, standardDeviation } from '../math-helper';
 
-describe('Math', () => {
+describe('Math helper', () => {
   describe('#average', () => {
     it('should return 0 for empty values', () => {
       expect(average([])).toBe(0);
