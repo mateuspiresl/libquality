@@ -83,7 +83,7 @@ export class RepositoryHostService {
         ),
       };
     } catch (error) {
-      if (error.errors[0].type === 'NOT_FOUND') {
+      if (error.errors && error.errors[0].type === 'NOT_FOUND') {
         return null;
       }
 

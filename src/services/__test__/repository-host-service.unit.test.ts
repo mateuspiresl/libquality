@@ -21,6 +21,15 @@ describe('Repository host service', () => {
     expect(repositoryHostService).toBeInstanceOf(RepositoryHostService);
   });
 
+  it('#fetchRepository should throw errors when not related to repository not found', async () => {
+    const error = new Error();
+    mockedOctokit.graphql.mockRejectedValue(error);
+
+    await expect(
+      repositoryHostService.fetchRepository({ owner: '', name: '' }),
+    ).rejects.toBe(error);
+  });
+
   describe('#calculateIssuesStatistics', () => {
     beforeAll(() => {
       jest
