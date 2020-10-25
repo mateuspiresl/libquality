@@ -1,3 +1,5 @@
 import { Router } from 'express';
 
-export const ApiRouter = Router();
+import { RepositoriesController } from './repositories';
+
+export const ApiRouter = Router().use(RepositoriesController);

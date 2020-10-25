@@ -1,0 +1,50 @@
+/repositories/{owner}/{name}:
+  get:
+    description: Finds a repository
+    tags:
+      - Repositories
+    parameters:
+      - in: path
+        name: owner
+        description: Repository owner.
+        schema:
+          type: string
+          min: 1
+          example: octocat
+        required: true
+      - in: path
+        name: name
+        description: Repository name.
+        schema:
+          type: string
+          min: 1
+          example: Hello-World
+        required: true
+    responses:
+      200:
+        description: Repository found.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                owner:
+                  type: string
+                  example: octocat
+                name:
+                  type: string
+                  example: Hello-World
+                title:
+                  type: string
+                  example: Hello-World
+                issuesCount:
+                  type: integer
+                  example: 30
+                issuesAvgTime:
+                  type: string
+                  example: 85d
+                issuesTimeStdDev:
+                  type: string
+                  example: 7d
+      404:
+        $ref: '#/components/responses/NotFoundError'

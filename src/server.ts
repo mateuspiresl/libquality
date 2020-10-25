@@ -2,6 +2,8 @@ import 'module-alias/register';
 import 'source-map-support/register';
 import 'reflect-metadata';
 
+import '~/config/github';
+
 import logger from '~/config/logger';
 import { PORT } from '~/config/settings';
 import { app } from '~/loaders/app';

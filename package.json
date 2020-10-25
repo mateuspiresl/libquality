@@ -28,6 +28,9 @@
   "_moduleAliases": {
     "~": "dist"
   },
+  "nodemonConfig": {
+    "ext": "js, yml"
+  },
   "dependencies": {
     "@hapi/boom": "^9.1.0",
     "@hapi/joi": "^17.1.1",
