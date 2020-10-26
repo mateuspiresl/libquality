@@ -24,4 +24,6 @@ export const NODE_ENV = process.env.NODE_ENV!;
 REQUIRED_VARIABLES.forEach(assertEnvironmentVariablePresence);
 
 export const PORT = parseInt(process.env.PORT!, 10);
-export const { DATABASE_URL, REDIS_URL, GITHUB_ACCESS_TOKEN } = process.env;
+export const DATABASE_URL = process.env.DATABASE_URL!;
+export const REDIS_URL = process.env.REDIS_URL!;
+export const GITHUB_ACCESS_TOKEN = process.env.GITHUB_ACCESS_TOKEN!;

@@ -4,22 +4,11 @@ import { Inject, Service } from 'typedi';
 import { InjectionKeys } from '~/constants/injection-keys';
 import { timeToDaysString } from '~/helpers/datetime-helper';
 import { average, standardDeviation } from '~/helpers/math-helper';
+import { RepositoryDocument, RepositoryModel } from '~/models/repository';
 
 export interface RepositoryIdentifier {
   owner: string;
   name: string;
-}
-
-export interface Repository {
-  owner: string;
-  name: string;
-  title: string;
-  issuesCount: number;
-  issuesAvgTime: string;
-  issuesTimeStdDev: string;
-  // The attributes below will be added when the persistence is implemented
-  // views: number;
-  // refreshedAt: Date;
 }
 
 export interface Issue {
@@ -59,9 +48,17 @@ export class RepositoryHostService {
   @Inject(InjectionKeys.Octokit)
   private readonly octokit: Octokit;
 
+  @Inject(InjectionKeys.RepositoryModel)
+  private readonly repositoryModel: typeof RepositoryModel;
+
+  /**
+   * Fetches a repository.
+   * @param identifier Repository identifier.
+   * @returns The updated repository document.
+   */
   async fetchRepository(
     identifier: RepositoryIdentifier,
-  ): Promise<Repository | null> {
+  ): Promise<RepositoryDocument | null> {
     try {
       const response = await this.octokit.graphql<FetchRepositoryResponse>(
         `query ($owner: String!, $name: String!) {
@@ -72,16 +69,23 @@ export class RepositoryHostService {
         { ...identifier },
       );
       const issuesStatistics = await this.calculateIssuesStatistics(identifier);
-      return {
-        owner: response.repository.owner.login,
-        name: identifier.name,
-        title: response.repository.name,
-        issuesCount: response.repository.issues.totalCount,
-        issuesAvgTime: timeToDaysString(issuesStatistics.averageTime),
-        issuesTimeStdDev: timeToDaysString(
-          issuesStatistics.timeStandardDeviation,
-        ),
-      };
+      return this.repositoryModel.findOneAndUpdate(
+        identifier,
+        {
+          $set: {
+            owner: response.repository.owner.login,
+            name: identifier.name,
+            title: response.repository.name,
+            issuesCount: response.repository.issues.totalCount,
+            issuesAvgTime: timeToDaysString(issuesStatistics.averageTime),
+            issuesTimeStdDev: timeToDaysString(
+              issuesStatistics.timeStandardDeviation,
+            ),
+          },
+          $inc: { viewsCount: 1 },
+        },
+        { new: true, upsert: true },
+      );
     } catch (error) {
       if (error.errors && error.errors[0].type === 'NOT_FOUND') {
         return null;
@@ -91,6 +95,12 @@ export class RepositoryHostService {
     }
   }
 
+  /**
+   * Calculates the average time the issues stays open and the standard deviation
+   * time.
+   * @param identifier Repository identifier.
+   * @returns Issues statistics.
+   */
   async calculateIssuesStatistics(
     identifier: RepositoryIdentifier,
   ): Promise<IssuesStatistics> {
@@ -108,6 +118,13 @@ export class RepositoryHostService {
     };
   }
 
+  /**
+   * Fetches all of the repository issues. To accomplish this, it needs to make
+   * multiple requests because of the pagination and limit of items per page.
+   * @param identifier Repository identifier.
+   * @param cursor Pagination cursor.
+   * @returns Issues list.
+   */
   async fetchIssues(
     identifier: RepositoryIdentifier,
     cursor: string | null = null,

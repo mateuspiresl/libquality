@@ -11,6 +11,7 @@ const DAY_MS = 86400000;
 
 const mockedOctokit = { graphql: jest.fn() };
 Container.set(InjectionKeys.Octokit, mockedOctokit);
+Container.set(InjectionKeys.RepositoryModel, null);
 
 describe('Repository host service', () => {
   const EXISTENT_REPOSITORY = { owner: 'octocat', name: 'Hello-World' };
@@ -21,13 +22,23 @@ describe('Repository host service', () => {
     expect(repositoryHostService).toBeInstanceOf(RepositoryHostService);
   });
 
-  it('#fetchRepository should throw errors when not related to repository not found', async () => {
-    const error = new Error();
-    mockedOctokit.graphql.mockRejectedValue(error);
+  describe('#fetchRepository', () => {
+    beforeAll(() => {
+      jest.spyOn(repositoryHostService, 'fetchIssues');
+    });
 
-    await expect(
-      repositoryHostService.fetchRepository({ owner: '', name: '' }),
-    ).rejects.toBe(error);
+    afterAll(() => {
+      (repositoryHostService.fetchIssues as jest.Mock).mockRestore();
+    });
+
+    it('should throw errors when not related to repository not found', async () => {
+      const error = new Error();
+      mockedOctokit.graphql.mockRejectedValue(error);
+
+      await expect(
+        repositoryHostService.fetchRepository({ owner: '', name: '' }),
+      ).rejects.toBe(error);
+    });
   });
 
   describe('#calculateIssuesStatistics', () => {

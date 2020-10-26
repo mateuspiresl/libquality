@@ -5,4 +5,9 @@ declare global {
 
   interface ERequest<Params = express.ParamsDictionary>
     extends express.Request<Params> {}
+
+  interface Loader {
+    connect(): Promise<void>;
+    disconnect(): Promise<void>;
+  }
 }
