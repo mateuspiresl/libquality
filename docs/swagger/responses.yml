@@ -1,3 +1,4 @@
-responses:
-  NotFoundError:
-    description: The resource was not found.
+components:
+  responses:
+    NotFoundError:
+      description: The resource was not found.
