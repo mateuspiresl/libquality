@@ -1,5 +1,8 @@
-export const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
+export const SECOND_MS = 1000;
+export const MINUTE_MS = 60 * SECOND_MS;
+export const HOUR_MS = 60 * MINUTE_MS;
+export const DAY_MS = 24 * HOUR_MS;
 
 export function timeToDaysString(time: number): string {
-  return `${Math.round(time / ONE_DAY_IN_MS)}d`;
+  return `${Math.round(time / DAY_MS)}d`;
 }

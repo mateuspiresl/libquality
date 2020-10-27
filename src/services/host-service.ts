@@ -1,24 +1,23 @@
 import { Octokit } from '@octokit/core';
 import { Inject, Service } from 'typedi';
 
+import { RepositoryIdentifier } from './repository-service';
+
 import { InjectionKeys } from '~/constants/injection-keys';
 import { timeToDaysString } from '~/helpers/datetime-helper';
 import { average, standardDeviation } from '~/helpers/math-helper';
-import { RepositoryDocument, RepositoryModel } from '~/models/repository';
+import { Repository } from '~/models/repository';
 
-export interface RepositoryIdentifier {
-  owner: string;
-  name: string;
-}
+export type RepositoryData = Pick<Repository, 'title' | 'issuesCount'>;
 
-export interface Issue {
+export type IssuesStatisticsData = Pick<
+  Repository,
+  'issuesAvgTime' | 'issuesTimeStdDev'
+>;
+
+interface Issue {
   createdAt: string;
   closedAt: string | null;
-}
-
-export interface IssuesStatistics {
-  averageTime: number;
-  timeStandardDeviation: number;
 }
 
 interface FetchRepositoryResponse {
@@ -43,51 +42,38 @@ interface FetchIssuesResponse {
 
 const ITEMS_PER_PAGE = 100;
 
+function isNotFoundError(error): boolean {
+  return error.errors && error.errors[0].type === 'NOT_FOUND';
+}
+
 @Service()
-export class RepositoryHostService {
+export class HostService {
   @Inject(InjectionKeys.Octokit)
   private readonly octokit: Octokit;
-
-  @Inject(InjectionKeys.RepositoryModel)
-  private readonly repositoryModel: typeof RepositoryModel;
 
   /**
    * Fetches a repository.
    * @param identifier Repository identifier.
-   * @returns The updated repository document.
+   * @returns Repository document.
    */
   async fetchRepository(
     identifier: RepositoryIdentifier,
-  ): Promise<RepositoryDocument | null> {
+  ): Promise<RepositoryData | null> {
     try {
       const response = await this.octokit.graphql<FetchRepositoryResponse>(
         `query ($owner: String!, $name: String!) {
           repository(owner: $owner, name: $name) {
-            name, owner { login }, issues { totalCount }
+            name, issues { totalCount }
           }
         }`,
         { ...identifier },
       );
-      const issuesStatistics = await this.calculateIssuesStatistics(identifier);
-      return this.repositoryModel.findOneAndUpdate(
-        identifier,
-        {
-          $set: {
-            owner: response.repository.owner.login,
-            name: identifier.name,
-            title: response.repository.name,
-            issuesCount: response.repository.issues.totalCount,
-            issuesAvgTime: timeToDaysString(issuesStatistics.averageTime),
-            issuesTimeStdDev: timeToDaysString(
-              issuesStatistics.timeStandardDeviation,
-            ),
-          },
-          $inc: { viewsCount: 1 },
-        },
-        { new: true, upsert: true },
-      );
+      return {
+        title: response.repository.name,
+        issuesCount: response.repository.issues.totalCount,
+      };
     } catch (error) {
-      if (error.errors && error.errors[0].type === 'NOT_FOUND') {
+      if (isNotFoundError(error)) {
         return null;
       }
 
@@ -103,19 +89,28 @@ export class RepositoryHostService {
    */
   async calculateIssuesStatistics(
     identifier: RepositoryIdentifier,
-  ): Promise<IssuesStatistics> {
-    const issues = await this.fetchIssues(identifier);
-    const now = Date.now();
-    const timeList = issues.map(
-      (issue) =>
-        (issue.closedAt ? Date.parse(issue.closedAt) : now) -
-        Date.parse(issue.createdAt),
-    );
-    const averageTime = average(timeList);
-    return {
-      averageTime,
-      timeStandardDeviation: standardDeviation(timeList, averageTime),
-    };
+  ): Promise<IssuesStatisticsData | null> {
+    try {
+      const issues = await this.fetchIssues(identifier);
+      const now = Date.now();
+      const timeList = issues.map(
+        (issue) =>
+          (issue.closedAt ? Date.parse(issue.closedAt) : now) -
+          Date.parse(issue.createdAt),
+      );
+      const averageTime = average(timeList);
+      const timeStandardDeviation = standardDeviation(timeList, averageTime);
+      return {
+        issuesAvgTime: timeToDaysString(averageTime),
+        issuesTimeStdDev: timeToDaysString(timeStandardDeviation),
+      };
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        return null;
+      }
+
+      throw error;
+    }
   }
 
   /**

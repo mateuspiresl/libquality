@@ -10,6 +10,7 @@ module.exports = {
   },
   testMatch: ['**/__test__/**/*.test.ts'],
   testEnvironment: 'node',
+  setupFilesAfterEnv: ['./src/config/tests.ts'],
   moduleNameMapper: {
     '~/(.*)': '<rootDir>/src/$1',
   },

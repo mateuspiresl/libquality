@@ -2,9 +2,9 @@ import { notFound } from '@hapi/boom';
 import Container from 'typedi';
 
 import {
-  RepositoryHostService,
   RepositoryIdentifier,
-} from '~/services/repository-host-service';
+  RepositoryService,
+} from '~/services/repository-service';
 
 type Params = RepositoryIdentifier;
 
@@ -12,8 +12,8 @@ export async function findRepositoryByIdentifier(
   req: ERequest<Params>,
   res: EResponse,
 ): Promise<void> {
-  const repositoryHostService = Container.get(RepositoryHostService);
-  const repository = await repositoryHostService.fetchRepository(req.params);
+  const repositoryService = Container.get(RepositoryService);
+  const repository = await repositoryService.fetchRepository(req.params);
 
   if (!repository) {
     throw notFound('Repository not found', req.params);

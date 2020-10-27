@@ -2,43 +2,41 @@ import '~/config/github';
 
 import Container from 'typedi';
 
-import { RepositoryHostService } from '../repository-host-service';
+import { HostService } from '../host-service';
 
 import { InjectionKeys } from '~/constants/injection-keys';
+import { DAY_MS, timeToDaysString } from '~/helpers/datetime-helper';
 import { average, standardDeviation } from '~/helpers/math-helper';
-
-const DAY_MS = 86400000;
 
 const mockedOctokit = { graphql: jest.fn() };
 Container.set(InjectionKeys.Octokit, mockedOctokit);
 Container.set(InjectionKeys.RepositoryModel, null);
 
-describe('Repository host service', () => {
+describe('Host service', () => {
   const EXISTENT_REPOSITORY = { owner: 'octocat', name: 'Hello-World' };
 
-  const repositoryHostService = Container.get(RepositoryHostService);
+  const repositoryHostService = Container.get(HostService);
 
   it('is injectable', async () => {
-    expect(repositoryHostService).toBeInstanceOf(RepositoryHostService);
+    expect(repositoryHostService).toBeInstanceOf(HostService);
   });
 
-  describe('#fetchRepository', () => {
-    beforeAll(() => {
-      jest.spyOn(repositoryHostService, 'fetchIssues');
-    });
+  it('#fetchRepository should throw errors when not related to repository not found', async () => {
+    const error = new Error();
+    mockedOctokit.graphql.mockRejectedValue(error);
 
-    afterAll(() => {
-      (repositoryHostService.fetchIssues as jest.Mock).mockRestore();
-    });
+    await expect(
+      repositoryHostService.fetchRepository({ owner: '', name: '' }),
+    ).rejects.toBe(error);
+  });
 
-    it('should throw errors when not related to repository not found', async () => {
-      const error = new Error();
-      mockedOctokit.graphql.mockRejectedValue(error);
+  it('#calculateIssuesStatistics should throw errors when not related to repository not found', async () => {
+    const error = new Error();
+    mockedOctokit.graphql.mockRejectedValue(error);
 
-      await expect(
-        repositoryHostService.fetchRepository({ owner: '', name: '' }),
-      ).rejects.toBe(error);
-    });
+    await expect(
+      repositoryHostService.calculateIssuesStatistics({ owner: '', name: '' }),
+    ).rejects.toBe(error);
   });
 
   describe('#calculateIssuesStatistics', () => {
@@ -64,8 +62,8 @@ describe('Repository host service', () => {
       await expect(
         repositoryHostService.calculateIssuesStatistics(EXISTENT_REPOSITORY),
       ).resolves.toStrictEqual({
-        averageTime: 0,
-        timeStandardDeviation: 0,
+        issuesAvgTime: '0d',
+        issuesTimeStdDev: '0d',
       });
     });
 
@@ -103,8 +101,8 @@ describe('Repository host service', () => {
       await expect(
         repositoryHostService.calculateIssuesStatistics(EXISTENT_REPOSITORY),
       ).resolves.toStrictEqual({
-        averageTime: avg,
-        timeStandardDeviation: standardDeviation(values, avg),
+        issuesAvgTime: timeToDaysString(avg),
+        issuesTimeStdDev: timeToDaysString(standardDeviation(values, avg)),
       });
     });
   });
