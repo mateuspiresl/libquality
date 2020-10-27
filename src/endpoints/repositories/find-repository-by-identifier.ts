@@ -1,3 +1,4 @@
+import { notFound } from '@hapi/boom';
 import Container from 'typedi';
 
 import {
@@ -13,5 +14,10 @@ export async function findRepositoryByIdentifier(
 ): Promise<void> {
   const repositoryHostService = Container.get(RepositoryHostService);
   const repository = await repositoryHostService.fetchRepository(req.params);
+
+  if (!repository) {
+    throw notFound('Repository not found', req.params);
+  }
+
   res.status(200).send(repository);
 }
