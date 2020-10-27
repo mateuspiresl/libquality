@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: libquality-api
+    container_name: server
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DATABASE_URL=mongodb://db:27017/libquality
+    ports:
+      - '3000:3000'
+    networks:
+      - app-network
+    depends_on:
+      - db
+    command: yarn start
+  db:
+    image: mongo:4.1.8-xenial
+    container_name: db
+    restart: unless-stopped
+    volumes:
+      - dbdata:/data/db
+    networks:
+      - app-network
+
+volumes:
+  dbdata:
+
+networks:
+  app-network:
+    driver: bridge
