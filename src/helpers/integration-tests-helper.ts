@@ -10,7 +10,6 @@ import { DatabaseLoader } from '~/loaders/database-loader';
 export function setupTestDatabase(): void {
   beforeAll(async () => {
     await DatabaseLoader.connect();
-    await mongoose.connection.db.dropDatabase();
   });
 
   afterAll(async () => {
