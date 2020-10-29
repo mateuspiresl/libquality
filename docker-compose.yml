@@ -6,29 +6,56 @@ services:
       context: .
       dockerfile: Dockerfile
     image: libquality-api
-    container_name: server
     restart: unless-stopped
     env_file: .env
     environment:
-      - DATABASE_URL=mongodb://db:27017/libquality
+      - DATABASE_URL=mongodb://db/libquality
+      - REDIS_URL=redis://redis
     ports:
       - '3000:3000'
     networks:
       - app-network
     depends_on:
       - db
+      - redis
+      - workers
     command: yarn start
+
+  workers:
+    image: libquality-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DATABASE_URL=mongodb://db/libquality
+      - REDIS_URL=redis://redis
+    networks:
+      - app-network
+    depends_on:
+      - db
+      - redis
+    command: yarn workers
+
   db:
     image: mongo:4.1.8-xenial
-    container_name: db
     restart: unless-stopped
     volumes:
-      - dbdata:/data/db
+      - db-data:/data/db
+    networks:
+      - app-network
+
+  redis:
+    image: redis
+    command: redis-server
+    expose:
+      - 6379
+    volumes:
+      - redis-data:/bitnami/redis/data
     networks:
       - app-network
 
 volumes:
-  dbdata:
+  db-data:
+  redis-data:
 
 networks:
   app-network:

@@ -3,8 +3,13 @@ import { Inject, Service } from 'typedi';
 import { HostService } from './host-service';
 
 import { InjectionKeys } from '~/constants/injection-keys';
-import { DAY_MS, HOUR_MS } from '~/helpers/datetime-helper';
-import { RepositoryDocument, RepositoryModel } from '~/models/repository';
+import { HOUR_MS } from '~/helpers/datetime-helper';
+import {
+  Repository,
+  RepositoryDocument,
+  RepositoryModel,
+} from '~/models/repository';
+import { FetchRepositoryWorker } from '~/workers/fetch-repository-worker';
 
 export interface RepositoryIdentifier {
   owner: string;
@@ -14,7 +19,7 @@ export interface RepositoryIdentifier {
 /**
  * A repository data is considered outdated after 1 hour after the last refresh.
  */
-const MAX_AGE = HOUR_MS;
+const MAX_AGE = 1 * HOUR_MS;
 
 /**
  * Checks whether the repository is output by the refreshed at date.
@@ -41,44 +46,56 @@ export class RepositoryService {
   async fetchRepository(
     identifier: RepositoryIdentifier,
   ): Promise<RepositoryDocument | null> {
-    const repository = await this.repositoryModel.findOneAndUpdate(
-      identifier,
-      {
-        $inc: { viewsCount: 1 },
-      },
-      { new: true },
-    );
+    const repository = await this.repositoryModel.findOneAndUpdate(identifier, {
+      $inc: { viewsCount: 1 },
+    });
+    const jobId = `${identifier.owner}/${identifier.name}`;
 
-    if (repository && !isOutdated(repository.refreshedAt)) {
+    // If the repository doesn't exist in the database, fetch its initial data and
+    // add a job to fetch the rest
+    if (!repository) {
+      const data = await this.hostService.fetchRepository(identifier);
+
+      if (!data) {
+        return null;
+      }
+
+      const created = RepositoryModel.create<Repository>({
+        ...identifier,
+        ...data,
+      });
+      await FetchRepositoryWorker.queue.add(identifier, { jobId });
+      return created;
+    }
+
+    if (!isOutdated(repository.refreshedAt)) {
       return repository;
     }
 
-    const [data, issuesStatistics] = await Promise.all([
-      this.hostService.fetchRepository(identifier),
-      this.hostService.calculateIssuesStatistics(identifier),
-    ]);
+    const job = await FetchRepositoryWorker.queue.getJob(jobId);
 
-    // The repository doesn't exist
-    if (!data || !issuesStatistics) {
-      return null;
+    // Add a job to refresh the repository data if there is no job or the last one
+    // failed
+    if (!job || (await job.isFailed())) {
+      await FetchRepositoryWorker.queue.add(identifier, { jobId });
     }
 
-    if (!repository) {
-      return this.repositoryModel.create({
-        ...identifier,
-        ...data,
-        ...issuesStatistics,
-        viewsCount: 1,
-        refreshedAt: new Date(),
-      });
-    }
+    return repository;
+  }
 
-    return this.repositoryModel.findOneAndUpdate(
-      { _id: repository.id },
-      {
-        $set: { ...data, ...issuesStatistics, refreshedAt: new Date() },
-      },
-      { new: true },
-    );
+  /**
+   * Updates a repository.
+   * @param identifier Repository identifier.
+   * @param data Data to replace.
+   * @returns The updated repository document.
+   */
+  async updateRepository(
+    identifier: RepositoryIdentifier,
+    data: Partial<Omit<Repository, 'viewsCount'>>,
+  ): Promise<boolean> {
+    const result = await this.repositoryModel.updateOne(identifier, {
+      $set: data,
+    });
+    return result.nModified === 1;
   }
 }

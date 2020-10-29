@@ -5,13 +5,17 @@ export interface Repository {
   name: string;
   title: string;
   issuesCount: number;
-  issuesAvgTime?: string | null;
-  issuesTimeStdDev?: string | null;
-  viewsCount: number;
-  refreshedAt: Date;
+  issuesAvgTime?: string;
+  issuesTimeStdDev?: string;
+  viewsCount?: number;
+  refreshedAt?: Date;
 }
 
-export type RepositoryDocument = Repository & mongoose.Document;
+export interface RepositoryDocument extends Repository, mongoose.Document {
+  viewsCount: number;
+  refreshedAt: Date;
+  isCalculatingIssuesStatistics: boolean;
+}
 
 const schema = new mongoose.Schema({
   owner: { type: String, required: true },
@@ -20,11 +24,17 @@ const schema = new mongoose.Schema({
   issuesCount: { type: Number, required: true },
   issuesAvgTime: { type: String },
   issuesTimeStdDev: { type: String },
-  viewsCount: { type: Number, required: true },
-  refreshedAt: { type: Date, required: true },
+  viewsCount: { type: Number, required: true, default: 1 },
+  refreshedAt: { type: Date, required: true, default: () => new Date() },
 });
 
 schema.index({ owner: 1, name: 1 }, { unique: true });
+
+schema
+  .virtual('isCalculatingIssuesStatistics')
+  .get(function isCalculatingIssuesStatistics() {
+    return !this.issuesAvgTime;
+  });
 
 schema.set('toJSON', {
   getters: true,
@@ -35,10 +45,11 @@ schema.set('toJSON', {
     issuesCount: document.issuesCount,
     issuesAvgTime: document.issuesAvgTime,
     issuesTimeStdDev: document.issuesTimeStdDev,
+    isCalculatingIssuesStatistics: document.isCalculatingIssuesStatistics,
   }),
 });
 
 export const RepositoryModel = mongoose.model<
   RepositoryDocument,
-  mongoose.Model<RepositoryDocument>
+  mongoose.Model<RepositoryDocument, Repository>
 >('Repository', schema);
